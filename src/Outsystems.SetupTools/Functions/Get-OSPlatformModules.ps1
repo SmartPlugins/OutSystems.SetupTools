@@ -57,7 +57,7 @@ Function Get-OSPlatformModules
     #>
 
     [OutputType('OutSystems.PlatformServices.CS_Module')]
-    [OutputType('OutSystems.PlatformServices.ModuleList', ParameterSetName = "PassThru")]
+    [OutputType('Outsystems.SetupTools.Modules', ParameterSetName = "PassThru")]
     param (
         [Parameter(ValueFromPipeline = $true)]
         [ValidateNotNullOrEmpty()]
@@ -111,7 +111,7 @@ Function Get-OSPlatformModules
             if ($PassThru.IsPresent)
             {
                 return [pscustomobject]@{
-                    PSTypeName    = 'Outsystems.SetupTools.ModuleList'
+                    PSTypeName    = 'Outsystems.SetupTools.Modules'
                     ServiceCenter = $ServiceCenter
                     Credential    = $Credential
                     Modules       = $modules

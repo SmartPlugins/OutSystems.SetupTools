@@ -36,7 +36,7 @@ function Get-OSPlatformApplications
     #>
 
     [OutputType('OutSystems.PlatformServices.CS_Application')]
-    [OutputType('OutSystems.PlatformServices.Modules', ParameterSetName = "PassThru")]
+    [OutputType('Outsystems.SetupTools.Applications', ParameterSetName = "PassThru")]
     param (
         [Parameter(ValueFromPipeline = $true)]
         [ValidateNotNullOrEmpty()]
@@ -92,7 +92,7 @@ function Get-OSPlatformApplications
                     PSTypeName    = 'Outsystems.SetupTools.Applications'
                     ServiceCenter = $ServiceCenter
                     Credential    = $Credential
-                    Applications       = $applications
+                    Applications  = $applications
                 }
             }
             else
