@@ -4,7 +4,7 @@ function SCWS_GetPlatformServicesProxy([string]$SCHost)
     $platformServicesUri = "http://$SCHost/ServiceCenter/PlatformServices_v8_0_0.asmx?WSDL"
 
     LogMessage -Function $($MyInvocation.Mycommand) -Phase 1 -Stream 2 -Message "Connecting to $platformServicesUri"
-    $platformServicesWS = New-WebServiceProxy -Uri $platformServicesUri -ErrorAction Stop -Namespace 'OutSystems.PlatformServices'
+    $platformServicesWS = New-WebServiceProxy -Uri $platformServicesUri -ErrorAction Stop -Namespace 'OutSystems.PlatformServices' -Class 'Proxy'
     LogMessage -Function $($MyInvocation.Mycommand) -Phase 1 -Stream 2 -Message "Connection successful"
 
     return $platformServicesWS
@@ -158,7 +158,7 @@ function SCWS_SolutionPack_PublishContinue([string]$SCHost, [string]$SCUser, [st
     $null = $($platformServicesWS).SolutionPack_PublishContinue($SCUser, $(GetHashedPassword($SCPass)), $PublishId)
 }
 
-function WSSC_SolutionPack_PublishAbort([string]$SCHost, [string]$SCUser, [string]$SCPass, [int]$PublishId)
+function SCWS_SolutionPack_PublishAbort([string]$SCHost, [string]$SCUser, [string]$SCPass, [int]$PublishId)
 {
     LogMessage -Function $($MyInvocation.Mycommand) -Phase 1 -Stream 2 -Message "Stopping publish id $PublishId on $SCHost"
 
@@ -166,26 +166,70 @@ function WSSC_SolutionPack_PublishAbort([string]$SCHost, [string]$SCUser, [strin
     $null = $($platformServicesWS).SolutionPack_PublishAbort($SCUser, $(GetHashedPassword($SCPass)), $PublishId)
 }
 
-
-#>###########
-Function WSGetModuleVersionPublished([string]$SCHost, [string]$SCUser, [string]$SCPass, [string]$ModuleKey)
+function SCWS_Server_GetServiceCenterUsers([string]$SCHost, [string]$SCUser, [string]$SCPass, [bool]$OnlyActive)
 {
-    LogMessage -Function $($MyInvocation.Mycommand) -Phase 1 -Stream 2 -Message "Getting module published version of module key $ModuleKey"
+    LogMessage -Function $($MyInvocation.Mycommand) -Phase 1 -Stream 2 -Message "Getting service center users"
 
     $errorCode = 0
     $errorMessage = ""
-    $publishedVersion = 0
 
-    $platformServicesWS = GetPlatformServicesWS -SCHost $SCHost
-    $result = $($platformServicesWS).Module_GetVersions($SCUser, $(GetHashedPassword($SCPass)), $ModuleKey, [ref]$publishedVersion, [ref]$errorCode, [ref]$errorMessage)
+    $platformServicesWS = SCWS_GetPlatformServicesProxy -SCHost $SCHost
+    $users = $($platformServicesWS).Server_GetServiceCenterUsers($SCUser, $(GetHashedPassword($SCPass)), $OnlyActive, [ref]$errorCode, [ref]$errorMessage)
 
-    LogMessage -Function $($MyInvocation.Mycommand) -Phase 1 -Stream 2 -Message "Returning module version $publishedVersion"
+    LogMessage -Function $($MyInvocation.Mycommand) -Phase 1 -Stream 2 -Message "Returning $($users.Count) users"
 
-    $returnResult = [pscustomobject]@{
-        ErrorCode     = $errorCode
-        ErrorMessage  = $errorMessage
-        ModuleVersion = $result | Where-Object -FilterScript { $_.Version -eq $publishedVersion }
+    return $users
+}
+
+function SCWS_Server_CreateOrUpdateServiceCenterUser([string]$SCHost, [string]$SCUser, [string]$SCPass, [string]$Name, [string]$Username, [string]$Password, [string]$Email, [string]$MobilePhone, [string]$ExternalId, [bool]$IsActive)
+{
+    LogMessage -Function $($MyInvocation.Mycommand) -Phase 1 -Stream 2 -Message "Adding/modifying service center user $Username"
+
+    $errorCode = 0
+    $errorMessage = ""
+
+    $platformServicesWS = SCWS_GetPlatformServicesProxy -SCHost $SCHost
+
+    $newSCUser = New-Object -TypeName OutSystems.PlatformServices.CS_ServiceCenterUser
+    $newSCUser.Name = $Name
+    $newSCUser.Username = $Username
+    $newSCUser.Password = $(GetHashedPassword($Password))
+    $newSCUser.Email = $Email
+    $newSCUser.MobilePhone = $MobilePhone
+    $newSCUSer.External_Id = $ExternalId
+    $newSCUSer.Is_Active = $IsActive
+
+    $null = $($platformServicesWS).Server_CreateOrUpdateServiceCenterUser($SCUser, $(GetHashedPassword($SCPass)), $newSCUser, [ref]$errorCode, [ref]$errorMessage)
+    if ($errorCode -ne 0)
+    {
+        throw $errorMessage
     }
 
-    return $returnResult
+    LogMessage -Function $($MyInvocation.Mycommand) -Phase 1 -Stream 2 -Message "Successfully added/changed username $Username"
 }
+
+function SCWS_Server_GrantServiceCenterRole([string]$SCHost, [string]$SCUser, [string]$SCPass, [string]$Username, [string]$Role)
+{
+    LogMessage -Function $($MyInvocation.Mycommand) -Phase 1 -Stream 2 -Message "Adding service center role $Role to user $Username"
+
+    $errorCode = 0
+    $errorMessage = ""
+    $UnknownRole = $false
+
+    $platformServicesWS = SCWS_GetPlatformServicesProxy -SCHost $SCHost
+
+    $SCRole = New-Object -TypeName OutSystems.PlatformServices.CS_ServiceCenterRole
+    $SCRole.Name = $Role
+    $SCRole.DefaultPermissionLevel = 0
+
+    $result = $($platformServicesWS).Server_GrantServiceCenterRole($SCUser, $(GetHashedPassword($SCPass)), $Username, $Role, [ref]$UnknownRole, [ref]$errorCode, [ref]$errorMessage)
+
+    # This WS only returns $true or $false. $false means success.
+    if(-not $result)
+    {
+        throw "Error adding service center role $Role to user $Username"
+    }
+
+    LogMessage -Function $($MyInvocation.Mycommand) -Phase 1 -Stream 2 -Message "Service center role $Role sucessfully added to user $Username"
+}
+
