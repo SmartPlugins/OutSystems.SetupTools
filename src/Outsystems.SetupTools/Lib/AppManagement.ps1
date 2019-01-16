@@ -124,7 +124,7 @@ function AppMgmt_SolutionPublishStop([string]$SCHost, [int]$PublishId, [pscreden
     $SCUser = $Credential.UserName
     $SCPass = $Credential.GetNetworkCredential().Password
 
-    WSSC_SolutionPack_PublishAbort -SCHost $SCHost -SCUser $SCUser -SCPass $SCPass -PublishId $PublishId
+    SCWS_SolutionPack_PublishAbort -SCHost $SCHost -SCUser $SCUser -SCPass $SCPass -PublishId $PublishId
 }
 
 function AppMgmt_GetModules([string]$SCHost, [pscredential]$Credential)
